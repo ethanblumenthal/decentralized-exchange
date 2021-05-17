@@ -17,6 +17,7 @@ contract Dex is Wallet {
         bytes32 ticker;
         uint amount;
         uint price;
+        uint filled;
     }
 
     uint public nextOrderId = 0;
@@ -35,7 +36,7 @@ contract Dex is Wallet {
         }
 
         Order[] storage orders = orderBook[ticker][uint(side)];
-        orders.push(Order(nextOrderId, msg.sender, side, ticker, amount, price));
+        orders.push(Order(nextOrderId, msg.sender, side, ticker, amount, price, 0));
 
         // Bubble sort
         uint i = orders.length > 0 ? orders.length - 1 : 0;
@@ -65,5 +66,29 @@ contract Dex is Wallet {
         nextOrderId++;
     }
 
-    function createLimitOrder(Side side, bytes32 ticker, uint amount) public {}
+    function createMarketOrder(Side side, bytes32 ticker, uint amount) public {
+        if (side == Side.SELL) {
+            require(balances[msg.sender][ticker] >= amount, "Insufficient balance");
+        }
+
+        Order[] storage orders = orderBook[ticker][side == Side.BUY ? 1 : 0];
+        uint totalFilled;
+
+        for (uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
+            uint leftToFill = amount.sub(totalFilled);
+            uint availableToFill = orders[i].amount.sub(orders[i].filled);
+            
+            // Fill the entire market order or fill as much as is available
+            uint filled = availableToFill > leftToFill ? leftToFill : availableToFill;
+            totalFilled = totalFilled.add(filled);
+            orders[i].filled = orders[i].filled.add(filled);
+            uint cost = filled.mul(orders[i].price);
+
+            if (side == Side.BUY) {
+                require(balances[msg.sender]["ETH"] >= cost);
+            } else {
+
+            }
+        }
+    }
 }
