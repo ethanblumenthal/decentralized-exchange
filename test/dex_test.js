@@ -18,7 +18,7 @@ contract('Dex', (accounts) => {
     );
   });
 
-  // The user must have enough tokens deposited such taht token balance >= sell order amount
+  // The user must have enough tokens deposited such that token balance >= sell order amount
   it('should throw an error if token balance is too low when creating SELL limit order', async () => {
     let dex = await Dex.deployed();
     let link = await Link.deployed();
@@ -27,6 +27,7 @@ contract('Dex', (accounts) => {
       dex.createLimitOrder(1, web3.utils.fromUtf8('LINK'), 10, 1),
     );
 
+    await link.approve(dex.address, 500);
     await dex.addToken(web3.utils.fromUtf8('LINK'), link.address, {
       from: accounts[0],
     });
@@ -44,13 +45,15 @@ contract('Dex', (accounts) => {
 
     await link.approve(dex.address, 500);
     await dex.depositEth({ value: 3000 });
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 300);
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 100);
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 200);
+    await dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 300);
+    await dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 100);
+    await dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 200);
 
     let orderbook = await dex.getOrderBook(web3.utils.fromUtf8('LINK'), 0);
+    assert(orderbook.length > 0);
+
     for (let i = 0; i < orderbook.length - 1; i++) {
-      truffleAssert(
+      assert(
         orderbook[i].price >= orderbook[i + 1].price,
         'not right order in BUY book',
       );
@@ -63,13 +66,15 @@ contract('Dex', (accounts) => {
     let link = await Link.deployed();
 
     await link.approve(dex.address, 500);
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 300);
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 100);
-    dex.createLimitOrder(0, web3.utils.fromUtf8('LINK'), 1, 200);
+    await dex.createLimitOrder(1, web3.utils.fromUtf8('LINK'), 1, 300);
+    await dex.createLimitOrder(1, web3.utils.fromUtf8('LINK'), 1, 100);
+    await dex.createLimitOrder(1, web3.utils.fromUtf8('LINK'), 1, 200);
 
     let orderbook = await dex.getOrderBook(web3.utils.fromUtf8('LINK'), 1);
+    assert(orderbook.length > 0);
+
     for (let i = 0; i < orderbook.length - 1; i++) {
-      truffleAssert(
+      assert(
         orderbook[i].price <= orderbook[i + 1].price,
         'not right order in SELL book',
       );
