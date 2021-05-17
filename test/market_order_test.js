@@ -134,11 +134,74 @@ contract('Dex', (accounts) => {
   });
 
   // The token balances of the limit order sellers should decrease with the filled amounts.
-  it('The token balances of the limit order sellers should decrease with the filled amounts.', async () => {});
+  it('The token balances of the limit order sellers should decrease with the filled amounts.', async () => {
+    let dex = await Dex.deployed();
+    let link = await Link.deployed();
+
+    let orderbook = await dex.getOrderBook(LINK, 1);
+    assert(
+      orderbook.length == 0,
+      'SELL side orderbook should be empty at start of test',
+    );
+
+    // Seller Account[1] is already approved and deposited LINK
+    // Seller Account[2] deposits LINK
+    await link.approve(dex.address, 500, { from: accounts[2] });
+    await dex.deposit(100, LINK, { from: accounts[2] });
+
+    await dex.createLimitOrder(1, LINK, 1, 300, { from: accounts[1] });
+    await dex.createLimitOrder(1, LINK, 1, 400, { from: accounts[2] });
+
+    // Check sellers LINK balances before trade
+    let account1BalanceBefore = await dex.balances(accounts[1], LINK);
+    let account2BalanceBefore = await dex.balances(accounts[2], LINK);
+
+    // Buyer Account[0] creates market order BUY both SELL orders
+    await dex.createMarketOrder(0, LINK, 2);
+
+    // Check sellers LINK balances after trade
+    let account1BalanceAfter = await dex.balances(accounts[1], LINK);
+    let account2BalanceAfter = await dex.balances(accounts[2], LINK);
+
+    assert.equal(account1BalanceBefore - 1, account1BalanceAfter);
+    assert.equal(account2BalanceBefore - 1, account2BalanceAfter);
+  });
 
   // Filled limit orders should be removed from the orderbook
-  it('Filled limit orders should be removed from the orderbook', async () => {});
+  it('Filled limit orders should be removed from the orderbook', async () => {
+    let dex = await Dex.deployed();
+
+    let orderbook = await dex.getOrderBook(LINK, 1);
+    assert(
+      orderbook.length == 0,
+      'SELL side orderbook should be empty at start of test',
+    );
+
+    await dex.createLimitOrder(1, LINK, 1, 300, { from: accounts[1] });
+    await dex.createMarketOrder(0, LINK, 1);
+
+    orderbook = await dex.getOrderBook(LINK, 1);
+    assert(
+      orderbook.length == 0,
+      'SELL side orderbook should be empty after trade',
+    );
+  });
 
   // Partly filled limit orders should be modified to represent the filled/remaining amount
-  it('Limit orders filled property should be set correctly after a trade', async () => {});
+  it('Limit orders filled property should be set correctly after a trade', async () => {
+    let dex = await Dex.deployed();
+
+    let orderbook = await dex.getOrderBook(LINK, 1);
+    assert(
+      orderbook.length == 0,
+      'SELL side orderbook should be empty at start of test',
+    );
+
+    await dex.createLimitOrder(1, LINK, 5, 300, { from: accounts[1] });
+    await dex.createMarketOrder(0, LINK, 2);
+
+    orderbook = await dex.getOrderBook(LINK, 1);
+    assert.equal(orderbook[0].filled, 2);
+    assert.equal(orderbook[0].amount, 5);
+  });
 });
