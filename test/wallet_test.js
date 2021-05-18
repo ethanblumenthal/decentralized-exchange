@@ -2,7 +2,7 @@ const Dex = artifacts.require('Dex');
 const Link = artifacts.require('Link');
 const truffleAssert = require('truffle-assertions');
 
-contract.skip('Dex', (accounts) => {
+contract('Dex', (accounts) => {
   const LINK = web3.utils.fromUtf8('LINK');
   const AAVE = web3.utils.fromUtf8('AAVE');
 

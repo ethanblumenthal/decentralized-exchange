@@ -1,4 +1,5 @@
 pragma solidity 0.8.4;
+pragma experimental ABIEncoderV2;
 
 import "./wallet.sol";
 
@@ -77,18 +78,49 @@ contract Dex is Wallet {
         for (uint256 i = 0; i < orders.length && totalFilled < amount; i++) {
             uint leftToFill = amount.sub(totalFilled);
             uint availableToFill = orders[i].amount.sub(orders[i].filled);
-            
-            // Fill the entire market order or fill as much as is available
-            uint filled = availableToFill > leftToFill ? leftToFill : availableToFill;
+            uint filled = 0;
+            if (availableToFill > leftToFill) {
+                filled = leftToFill; // Fill the entire market order
+            } else { 
+                filled = availableToFill; // Fill as much as is available in order[i]
+            }
+
             totalFilled = totalFilled.add(filled);
             orders[i].filled = orders[i].filled.add(filled);
             uint cost = filled.mul(orders[i].price);
 
             if (side == Side.BUY) {
+                // Verify that the buyer has enough ETH to cover the purchase
                 require(balances[msg.sender]["ETH"] >= cost);
-            } else {
 
+                // msg.sender is the buyer
+                balances[msg.sender][ticker] = balances[msg.sender][ticker].add(filled);
+                balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].sub(cost);
+                
+                balances[orders[i].trader][ticker] = balances[orders[i].trader][ticker].sub(filled);
+                balances[orders[i].trader]["ETH"] = balances[orders[i].trader]["ETH"].add(cost);
             }
+            else if (side == Side.SELL) {
+                // msg.sender is the seller
+                balances[msg.sender][ticker] = balances[msg.sender][ticker].sub(filled);
+                balances[msg.sender]["ETH"] = balances[msg.sender]["ETH"].add(cost);
+                
+                balances[orders[i].trader][ticker] = balances[orders[i].trader][ticker].add(filled);
+                balances[orders[i].trader]["ETH"] = balances[orders[i].trader]["ETH"].sub(cost);
+            }
+            
         }
+
+        // Remove 100% filled orders from the orderbook
+        while(orders.length > 0 && orders[0].filled == orders[0].amount) {
+            // Remove the first element in the orders array by overwriting 
+            // every element with the next element in the orders array
+            for (uint256 i = 0; i < orders.length - 1; i++) {
+                orders[i] = orders[i + 1];
+            }
+            orders.pop();
+        }
+        
     }
+
 }
